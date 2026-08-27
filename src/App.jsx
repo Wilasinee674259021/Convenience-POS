@@ -29,8 +29,13 @@ function App() {
 
       return JSON.parse(saved);
     } catch (error) {
-      console.error("ไม่สามารถอ่านข้อมูลผู้ใช้ได้:", error);
+      console.error(
+        "ไม่สามารถอ่านข้อมูลผู้ใช้ได้:",
+        error
+      );
+
       localStorage.removeItem("pos_current_user");
+
       return null;
     }
   });
@@ -38,8 +43,38 @@ function App() {
   // =========================
   // CURRENT PAGE
   // =========================
+  // จำหน้าล่าสุดเอาไว้
+  // เมื่อ Refresh จะกลับมาหน้าเดิม
 
-  const [currentPage, setCurrentPage] = useState("Dashboard");
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const savedPage =
+        localStorage.getItem("pos_current_page");
+
+      return savedPage || "Dashboard";
+    } catch (error) {
+      console.error(
+        "ไม่สามารถอ่านหน้าปัจจุบันได้:",
+        error
+      );
+
+      return "Dashboard";
+    }
+  });
+
+  // =========================
+  // CHANGE PAGE
+  // =========================
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+
+    // จำหน้าปัจจุบัน
+    localStorage.setItem(
+      "pos_current_page",
+      page
+    );
+  };
 
   // =========================
   // LOGIN
@@ -61,6 +96,11 @@ function App() {
 
     // หลัง Login ให้ไป Dashboard
     setCurrentPage("Dashboard");
+
+    localStorage.setItem(
+      "pos_current_page",
+      "Dashboard"
+    );
   };
 
   // =========================
@@ -81,9 +121,10 @@ function App() {
     // =========================
 
     try {
-      const savedLogs = localStorage.getItem(
-        "pos_audit_logs"
-      );
+      const savedLogs =
+        localStorage.getItem(
+          "pos_audit_logs"
+        );
 
       const logs = savedLogs
         ? JSON.parse(savedLogs)
@@ -91,9 +132,12 @@ function App() {
 
       logs.unshift({
         id: Date.now(),
-        date: new Date().toLocaleString("th-TH"),
+        date: new Date().toLocaleString(
+          "th-TH"
+        ),
         employee:
-          currentUser?.name || "ไม่ทราบชื่อ",
+          currentUser?.name ||
+          "ไม่ทราบชื่อ",
         action: "ออกจากระบบ",
         module: "ระบบ",
         detail: "ออกจากระบบสำเร็จ",
@@ -115,9 +159,17 @@ function App() {
     // CLEAR LOGIN
     // =========================
 
-    localStorage.removeItem("pos_current_user");
+    localStorage.removeItem(
+      "pos_current_user"
+    );
+
+    // เคลียร์หน้าที่จำไว้
+    localStorage.removeItem(
+      "pos_current_page"
+    );
 
     setCurrentUser(null);
+
     setCurrentPage("Dashboard");
   };
 
@@ -174,12 +226,33 @@ function App() {
     allowedPages[userRole] || [];
 
   // =========================
+  // CHECK SAVED PAGE
+  // =========================
+
+  // ถ้าหน้าที่จำไว้ ผู้ใช้ไม่มีสิทธิ์
+  // ให้กลับไป Dashboard
+
+  if (
+    !userAllowedPages.includes(currentPage)
+  ) {
+    if (currentPage !== "Dashboard") {
+      setCurrentPage("Dashboard");
+
+      localStorage.setItem(
+        "pos_current_page",
+        "Dashboard"
+      );
+    }
+  }
+
+  // =========================
   // RENDER PAGE
   // =========================
 
   const renderPage = () => {
     // ถ้าผู้ใช้ไม่มีสิทธิ์เข้าหน้านั้น
     // ให้กลับไป Dashboard
+
     if (
       !userAllowedPages.includes(currentPage)
     ) {
@@ -231,7 +304,7 @@ function App() {
 
       <Sidebar
         currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
+        setCurrentPage={handlePageChange}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
