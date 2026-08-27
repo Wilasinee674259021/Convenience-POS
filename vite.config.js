@@ -11,4 +11,8 @@ export default defineConfig({
   server: {
     allowedHosts: ['convenience-pos.onrender.com'],
   },
+
+  preview: {
+    allowedHosts: ['convenience-pos.onrender.com'],
+  },
 })
