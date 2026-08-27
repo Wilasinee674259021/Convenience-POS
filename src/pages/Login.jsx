@@ -6,28 +6,46 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
+  // ===============================
+  // LOGIN
+  // ===============================
+
   const handleLogin = (e) => {
     e.preventDefault();
 
     setError("");
 
-    if (!username || !password) {
+    if (!username.trim() || !password) {
       setError("กรุณากรอก Username และ Password");
       return;
+    }
+
+    // ===============================
+    // โหลดข้อมูลพนักงาน
+    // ===============================
+
+    const savedEmployees =
+      localStorage.getItem("pos_employees");
+
+    let employees = [];
+
+    try {
+      employees = savedEmployees
+        ? JSON.parse(savedEmployees)
+        : [];
+    } catch (error) {
+      console.error(
+        "ไม่สามารถอ่านข้อมูลพนักงานได้:",
+        error
+      );
+
+      employees = [];
     }
 
     // ===============================
     // สร้างบัญชีเริ่มต้น
     // ===============================
 
-    const savedEmployees =
-      localStorage.getItem("pos_employees");
-
-    let employees = savedEmployees
-      ? JSON.parse(savedEmployees)
-      : [];
-
-    // ถ้ายังไม่มีพนักงาน ให้สร้าง Admin อัตโนมัติ
     if (employees.length === 0) {
       employees = [
         {
@@ -35,7 +53,7 @@ export default function Login({ onLogin }) {
           name: "ผู้ดูแลระบบ",
           username: "admin",
           password: "1234",
-          role: "admin",
+          role: "ผู้ดูแลระบบ",
           position: "ผู้ดูแลระบบ",
           status: "เปิดใช้งาน",
         },
@@ -44,8 +62,17 @@ export default function Login({ onLogin }) {
           name: "พนักงานหน้าร้าน",
           username: "staff",
           password: "1234",
-          role: "staff",
+          role: "พนักงาน",
           position: "พนักงาน",
+          status: "เปิดใช้งาน",
+        },
+        {
+          id: 3,
+          name: "ผู้จัดการร้าน",
+          username: "manager",
+          password: "1234",
+          role: "ผู้จัดการ",
+          position: "ผู้จัดการ",
           status: "เปิดใช้งาน",
         },
       ];
@@ -62,13 +89,20 @@ export default function Login({ onLogin }) {
 
     const employee = employees.find(
       (item) =>
-        item.username.toLowerCase() ===
-          username.toLowerCase() &&
-        item.password === password
+        String(item.username || "")
+          .toLowerCase()
+          .trim() === username.toLowerCase().trim() &&
+        String(item.password || "") === password
     );
 
+    // ===============================
+    // Login ไม่สำเร็จ
+    // ===============================
+
     if (!employee) {
-      setError("Username หรือ Password ไม่ถูกต้อง");
+      setError(
+        "Username หรือ Password ไม่ถูกต้อง"
+      );
       return;
     }
 
@@ -76,7 +110,10 @@ export default function Login({ onLogin }) {
     // ตรวจสอบสถานะบัญชี
     // ===============================
 
-    if (employee.status !== "เปิดใช้งาน") {
+    if (
+      employee.status &&
+      employee.status !== "เปิดใช้งาน"
+    ) {
       setError(
         "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
       );
@@ -84,32 +121,96 @@ export default function Login({ onLogin }) {
     }
 
     // ===============================
+    // แปลง Role เก่าให้เป็น Role ใหม่
+    // ===============================
+
+    let userRole = employee.role;
+
+    if (userRole === "admin") {
+      userRole = "ผู้ดูแลระบบ";
+    }
+
+    if (userRole === "staff") {
+      userRole = "พนักงาน";
+    }
+
+    if (userRole === "manager") {
+      userRole = "ผู้จัดการ";
+    }
+
+    // ===============================
+    // สร้างข้อมูลผู้ใช้ที่ Login
+    // ===============================
+
+    const loggedInUser = {
+      ...employee,
+      role: userRole,
+    };
+
+    // ===============================
+    // อัปเดต Role ในข้อมูลพนักงาน
+    // ===============================
+
+    const updatedEmployees = employees.map(
+      (item) => {
+        if (item.id === employee.id) {
+          return {
+            ...item,
+            role: userRole,
+          };
+        }
+
+        return item;
+      }
+    );
+
+    localStorage.setItem(
+      "pos_employees",
+      JSON.stringify(updatedEmployees)
+    );
+
+    // ===============================
     // บันทึกผู้ใช้งานปัจจุบัน
     // ===============================
 
     localStorage.setItem(
       "pos_current_user",
-      JSON.stringify(employee)
+      JSON.stringify(loggedInUser)
     );
 
     // ===============================
     // บันทึก Audit Log
     // ===============================
 
-    const savedLogs =
-      localStorage.getItem("pos_audit_logs");
+    let logs = [];
 
-    const logs = savedLogs
-      ? JSON.parse(savedLogs)
-      : [];
+    try {
+      const savedLogs =
+        localStorage.getItem(
+          "pos_audit_logs"
+        );
+
+      logs = savedLogs
+        ? JSON.parse(savedLogs)
+        : [];
+    } catch (error) {
+      console.error(
+        "ไม่สามารถอ่าน Audit Log ได้:",
+        error
+      );
+
+      logs = [];
+    }
 
     logs.unshift({
       id: Date.now(),
-      date: new Date().toLocaleString("th-TH"),
-      employee: employee.name,
+      date: new Date().toLocaleString(
+        "th-TH"
+      ),
+      employee: loggedInUser.name,
       action: "เข้าสู่ระบบ",
       module: "ระบบ",
-      detail: `เข้าสู่ระบบด้วย Username ${employee.username}`,
+      detail: `เข้าสู่ระบบด้วย Username ${loggedInUser.username}`,
       type: "login",
     });
 
@@ -122,15 +223,22 @@ export default function Login({ onLogin }) {
     // เข้าสู่ระบบ
     // ===============================
 
-    onLogin(employee);
+    onLogin(loggedInUser);
   };
+
+  // ===============================
+  // LOGIN PAGE
+  // ===============================
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
 
       <div className="w-full max-w-md">
 
-        {/* LOGO */}
+        {/* ===============================
+            LOGO
+        =============================== */}
+
         <div className="text-center mb-8">
 
           <div className="text-6xl mb-4">
@@ -147,7 +255,10 @@ export default function Login({ onLogin }) {
 
         </div>
 
-        {/* LOGIN CARD */}
+        {/* ===============================
+            LOGIN CARD
+        =============================== */}
+
         <div className="bg-white rounded-2xl shadow-2xl p-8">
 
           <h2 className="text-2xl font-bold text-slate-800 mb-2">
@@ -163,7 +274,10 @@ export default function Login({ onLogin }) {
             className="space-y-5"
           >
 
-            {/* USERNAME */}
+            {/* ===============================
+                USERNAME
+            =============================== */}
+
             <div>
 
               <label className="block font-medium mb-2">
@@ -177,12 +291,16 @@ export default function Login({ onLogin }) {
                   setUsername(e.target.value)
                 }
                 placeholder="กรอก Username"
+                autoComplete="username"
                 className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
 
             </div>
 
-            {/* PASSWORD */}
+            {/* ===============================
+                PASSWORD
+            =============================== */}
+
             <div>
 
               <label className="block font-medium mb-2">
@@ -202,31 +320,42 @@ export default function Login({ onLogin }) {
                     setPassword(e.target.value)
                   }
                   placeholder="กรอก Password"
+                  autoComplete="current-password"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-blue-500"
                 />
 
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword(!showPassword)
+                    setShowPassword(
+                      !showPassword
+                    )
                   }
-                  className="absolute right-4 top-3"
+                  className="absolute right-4 top-3 text-lg"
                 >
-                  {showPassword ? "🙈" : "👁️"}
+                  {showPassword
+                    ? "🙈"
+                    : "👁️"}
                 </button>
 
               </div>
 
             </div>
 
-            {/* ERROR */}
+            {/* ===============================
+                ERROR
+            =============================== */}
+
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
                 ⚠️ {error}
               </div>
             )}
 
-            {/* LOGIN BUTTON */}
+            {/* ===============================
+                LOGIN BUTTON
+            =============================== */}
+
             <button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition"
@@ -236,7 +365,6 @@ export default function Login({ onLogin }) {
 
           </form>
 
-        
         </div>
 
       </div>
