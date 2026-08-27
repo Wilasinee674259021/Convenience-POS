@@ -236,23 +236,7 @@ export default function Login({ onLogin }) {
 
           </form>
 
-          {/* DEFAULT ACCOUNT */}
-          <div className="mt-6 bg-slate-50 rounded-xl p-4 text-sm">
-
-            <p className="font-bold text-slate-700 mb-2">
-              🔑 บัญชีเริ่มต้น
-            </p>
-
-            <p className="text-slate-600">
-              Admin: <b>admin</b> / <b>1234</b>
-            </p>
-
-            <p className="text-slate-600">
-              Staff: <b>staff</b> / <b>1234</b>
-            </p>
-
-          </div>
-
+        
         </div>
 
       </div>
