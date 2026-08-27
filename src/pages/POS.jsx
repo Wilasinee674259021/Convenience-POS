@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function POS() {
   // =========================
@@ -81,31 +81,6 @@ export default function POS() {
   ];
 
   // =========================
-  // MEMBERS
-  // =========================
-
-  const members = [
-    {
-      id: "M001",
-      name: "สมชาย ใจดี",
-      phone: "0812345678",
-      points: 1250,
-    },
-    {
-      id: "M002",
-      name: "สมหญิง รักดี",
-      phone: "0899999999",
-      points: 850,
-    },
-    {
-      id: "M003",
-      name: "วิชัย รุ่งเรือง",
-      phone: "0866666666",
-      points: 420,
-    },
-  ];
-
-  // =========================
   // STATE
   // =========================
 
@@ -119,6 +94,18 @@ export default function POS() {
 
   const [member, setMember] = useState(null);
 
+  // ดึงสมาชิกจาก localStorage
+  const [members, setMembers] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pos_members");
+
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("ไม่สามารถอ่านข้อมูลสมาชิกได้", error);
+      return [];
+    }
+  });
+
   const [usePoints, setUsePoints] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState(null);
@@ -130,18 +117,46 @@ export default function POS() {
   const [receiptNumber, setReceiptNumber] = useState("");
 
   // =========================
+  // LOAD MEMBERS
+  // =========================
+
+  useEffect(() => {
+    const loadMembers = () => {
+      try {
+        const saved = localStorage.getItem("pos_members");
+
+        if (saved) {
+          setMembers(JSON.parse(saved));
+        } else {
+          setMembers([]);
+        }
+      } catch (error) {
+        console.error("ไม่สามารถโหลดสมาชิกได้", error);
+        setMembers([]);
+      }
+    };
+
+    loadMembers();
+
+    // รับข้อมูลเมื่อ localStorage เปลี่ยน
+    window.addEventListener("storage", loadMembers);
+
+    return () => {
+      window.removeEventListener("storage", loadMembers);
+    };
+  }, []);
+
+  // =========================
   // FILTER PRODUCTS
   // =========================
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      const keyword = search.toLowerCase().trim();
+
       const matchSearch =
-        product.name
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        product.code
-          .toLowerCase()
-          .includes(search.toLowerCase());
+        product.name.toLowerCase().includes(keyword) ||
+        product.code.toLowerCase().includes(keyword);
 
       const matchCategory =
         category === "ทั้งหมด" ||
@@ -161,15 +176,17 @@ export default function POS() {
     );
 
     if (existing) {
+      if (existing.qty >= product.stock) {
+        alert("สินค้าในสต็อกมีไม่เพียงพอ");
+        return;
+      }
+
       setCart(
         cart.map((item) =>
           item.id === product.id
             ? {
                 ...item,
-                qty: Math.min(
-                  item.qty + 1,
-                  product.stock
-                ),
+                qty: item.qty + 1,
               }
             : item
         )
@@ -190,12 +207,14 @@ export default function POS() {
       cart.map((item) => {
         if (item.id !== id) return item;
 
+        if (item.qty >= item.stock) {
+          alert("สินค้าในสต็อกมีไม่เพียงพอ");
+          return item;
+        }
+
         return {
           ...item,
-          qty: Math.min(
-            item.qty + 1,
-            item.stock
-          ),
+          qty: item.qty + 1,
         };
       })
     );
@@ -279,16 +298,15 @@ export default function POS() {
   // POINT DISCOUNT
   // =========================
 
-  const afterPromotion =
-    Math.max(
-      subtotal - promotionDiscount,
-      0
-    );
+  const afterPromotion = Math.max(
+    subtotal - promotionDiscount,
+    0
+  );
 
   const pointDiscount =
     usePoints && member
       ? Math.min(
-          member.points,
+          Number(member.points || 0),
           afterPromotion
         )
       : 0;
@@ -307,24 +325,53 @@ export default function POS() {
     netTotal;
 
   // =========================
-  // MEMBER
+  // MEMBER SEARCH
   // =========================
 
   const searchMember = () => {
-    const result = members.find(
+    const phoneNumber = memberPhone.trim();
+
+    if (!phoneNumber) {
+      alert("กรุณากรอกเบอร์โทรสมาชิก");
+      return;
+    }
+
+    // โหลดข้อมูลล่าสุดจาก localStorage ก่อนค้นหา
+    let currentMembers = members;
+
+    try {
+      const saved =
+        localStorage.getItem("pos_members");
+
+      if (saved) {
+        currentMembers = JSON.parse(saved);
+        setMembers(currentMembers);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    const result = currentMembers.find(
       (item) =>
-        item.phone === memberPhone.trim()
+        String(item.phone).trim() === phoneNumber
     );
 
-    setMember(result || null);
-    setUsePoints(false);
+    if (result) {
+      setMember(result);
+      setUsePoints(false);
+    } else {
+      setMember(null);
+      setUsePoints(false);
 
-    if (!result) {
       alert(
         "ไม่พบสมาชิกจากเบอร์โทรนี้"
       );
     }
   };
+
+  // =========================
+  // CLEAR MEMBER
+  // =========================
 
   const clearMember = () => {
     setMember(null);
@@ -381,6 +428,18 @@ export default function POS() {
     setReceiptNumber("");
     setSearch("");
     setCategory("ทั้งหมด");
+
+    // โหลดสมาชิกใหม่อีกครั้ง
+    try {
+      const saved =
+        localStorage.getItem("pos_members");
+
+      setMembers(
+        saved ? JSON.parse(saved) : []
+      );
+    } catch (error) {
+      setMembers([]);
+    }
   };
 
   // =========================
@@ -393,7 +452,6 @@ export default function POS() {
       {/* HEADER */}
 
       <div className="mb-6">
-
         <h1 className="text-3xl font-bold text-slate-800">
           🛒 หน้าคิดเงิน
         </h1>
@@ -401,16 +459,13 @@ export default function POS() {
         <p className="text-slate-500 mt-1">
           POS - Point of Sale
         </p>
-
       </div>
 
       {/* MAIN */}
 
       <div className="grid grid-cols-3 gap-6">
 
-        {/* =========================
-            LEFT
-        ========================= */}
+        {/* LEFT */}
 
         <div className="col-span-2 space-y-6">
 
@@ -439,23 +494,28 @@ export default function POS() {
 
               <input
                 value={memberPhone}
-                onChange={(e) =>
-                  setMemberPhone(
-                    e.target.value
-                  )
-                }
+                onChange={(e) => {
+                  const value =
+                    e.target.value.replace(
+                      /\D/g,
+                      ""
+                    );
+
+                  setMemberPhone(value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     searchMember();
                   }
                 }}
                 placeholder="กรอกเบอร์โทรสมาชิก"
+                maxLength={10}
                 className="flex-1 border border-slate-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
 
               <button
                 onClick={searchMember}
-                className="bg-blue-600 text-white px-6 rounded-lg font-medium"
+                className="bg-blue-600 text-white px-6 rounded-lg font-medium hover:bg-blue-700"
               >
                 🔎 ค้นหา
               </button>
@@ -487,7 +547,9 @@ export default function POS() {
 
                     <div className="text-3xl font-bold text-yellow-600">
                       ⭐{" "}
-                      {member.points.toLocaleString()}
+                      {Number(
+                        member.points || 0
+                      ).toLocaleString()}
                     </div>
 
                     <div className="text-sm text-slate-500">
@@ -540,7 +602,7 @@ export default function POS() {
                 onClick={() =>
                   setSearch("")
                 }
-                className="border px-5 rounded-lg"
+                className="border px-5 rounded-lg hover:bg-slate-50"
               >
                 ล้าง
               </button>
@@ -566,7 +628,7 @@ export default function POS() {
                   className={
                     category === item
                       ? "bg-blue-600 text-white px-4 py-2 rounded-lg"
-                      : "bg-slate-100 px-4 py-2 rounded-lg"
+                      : "bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200"
                   }
                 >
                   {item}
@@ -643,9 +705,7 @@ export default function POS() {
 
         </div>
 
-        {/* =========================
-            CART
-        ========================= */}
+        {/* CART */}
 
         <div className="bg-white rounded-2xl shadow-sm p-5 h-fit">
 
@@ -826,7 +886,7 @@ export default function POS() {
               onClick={() =>
                 setPaymentMethod("select")
               }
-              className="w-full bg-green-600 disabled:bg-slate-300 text-white py-4 rounded-xl mt-5 font-bold text-lg"
+              className="w-full bg-green-600 disabled:bg-slate-300 text-white py-4 rounded-xl mt-5 font-bold text-lg hover:bg-green-700"
             >
               💳 ชำระเงิน
             </button>
