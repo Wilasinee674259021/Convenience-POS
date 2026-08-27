@@ -139,7 +139,6 @@ function App() {
 
   const allowedPages = {
     "พนักงาน": [
-      "Dashboard",
       "หน้าคิดเงิน",
       "สมาชิก",
     ],
