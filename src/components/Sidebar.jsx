@@ -13,7 +13,6 @@ export default function Sidebar({
       icon: "📊",
       name: "Dashboard",
       roles: [
-        "พนักงาน",
         "ผู้จัดการ",
         "ผู้ดูแลระบบ",
       ],
