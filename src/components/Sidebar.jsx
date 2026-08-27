@@ -4,6 +4,9 @@ export default function Sidebar({
   currentUser,
   onLogout,
 }) {
+  // =========================
+  // MENU
+  // =========================
 
   const menus = [
     {
@@ -98,20 +101,26 @@ export default function Sidebar({
     },
   ];
 
-  const visibleMenus =
-    menus.filter((menu) =>
-      menu.roles.includes(
-        currentUser?.role
-      )
-    );
+  // =========================
+  // FILTER MENU BY ROLE
+  // =========================
+
+  const visibleMenus = menus.filter((menu) =>
+    menu.roles.includes(currentUser?.role)
+  );
+
+  // =========================
+  // SIDEBAR
+  // =========================
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white p-4 flex flex-col">
+    <aside className="w-64 min-h-screen bg-slate-900 text-white p-4 flex flex-col shrink-0">
 
-      {/* LOGO */}
+      {/* =========================
+          LOGO
+      ========================= */}
 
       <div className="mb-6 px-3">
-
         <h1 className="text-xl font-bold">
           🏪 Convenience POS
         </h1>
@@ -119,87 +128,83 @@ export default function Sidebar({
         <p className="text-sm text-slate-400 mt-1">
           ระบบจัดการร้านสะดวกซื้อ
         </p>
-
       </div>
 
-      {/* USER */}
+      {/* =========================
+          USER
+      ========================= */}
 
       <div className="bg-slate-800 rounded-xl p-4 mb-5">
 
         <div className="flex items-center gap-3">
 
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-lg">
+          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-lg shrink-0">
             👤
           </div>
 
           <div className="min-w-0">
-
             <p className="font-bold truncate">
-              {currentUser?.name}
+              {currentUser?.name || "ผู้ใช้งาน"}
             </p>
 
-            <p className="text-xs text-slate-400">
-              {currentUser?.role}
+            <p className="text-xs text-slate-400 truncate">
+              {currentUser?.role || "ไม่ทราบสิทธิ์"}
             </p>
-
           </div>
 
         </div>
 
       </div>
 
-      {/* MENU */}
+      {/* =========================
+          MENU
+      ========================= */}
 
       <nav className="space-y-1 flex-1">
 
-        {visibleMenus.map(
-          (menu) => {
+        {visibleMenus.map((menu) => {
+          const active =
+            currentPage === menu.name;
 
-            const active =
-              currentPage ===
-              menu.name;
-
-            return (
-              <button
-                key={menu.name}
-                onClick={() =>
-                  setCurrentPage(
-                    menu.name
-                  )
+          return (
+            <button
+              key={menu.name}
+              type="button"
+              onClick={() =>
+                setCurrentPage(menu.name)
+              }
+              className={`
+                w-full flex items-center gap-3
+                px-4 py-3 rounded-lg text-left
+                transition
+                ${
+                  active
+                    ? "bg-blue-600"
+                    : "hover:bg-slate-700"
                 }
-                className={`
-                  w-full flex items-center gap-3
-                  px-4 py-3 rounded-lg text-left
-                  transition
-                  ${
-                    active
-                      ? "bg-blue-600"
-                      : "hover:bg-slate-700"
-                  }
-                `}
-              >
+              `}
+            >
+              <span className="text-lg">
+                {menu.icon}
+              </span>
 
-                <span>
-                  {menu.icon}
-                </span>
-
-                <span>
-                  {menu.name}
-                </span>
-
-              </button>
-            );
-
-          }
-        )}
+              <span>
+                {menu.name}
+              </span>
+            </button>
+          );
+        })}
 
       </nav>
 
-      {/* LOGOUT */}
+      {/* =========================
+          LOGOUT
+      ========================= */}
 
       <button
+        type="button"
         onClick={onLogout}
-        className="w-full mt-4 bg-red-600 hover:bg-red-700 px-4 py-3 rounded-lg font-bold"
+        className="w-full mt-4 bg-red-600 hover:bg-red-700 px-4 py-3 rounded-lg font-bold transition"
       >
         🚪 ออกจากระบบ
       </button>
