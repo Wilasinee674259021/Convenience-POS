@@ -16,12 +16,49 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    // ===============================
+    // สร้างบัญชีเริ่มต้น
+    // ===============================
+
     const savedEmployees =
       localStorage.getItem("pos_employees");
 
-    const employees = savedEmployees
+    let employees = savedEmployees
       ? JSON.parse(savedEmployees)
       : [];
+
+    // ถ้ายังไม่มีพนักงาน ให้สร้าง Admin อัตโนมัติ
+    if (employees.length === 0) {
+      employees = [
+        {
+          id: 1,
+          name: "ผู้ดูแลระบบ",
+          username: "admin",
+          password: "1234",
+          role: "admin",
+          position: "ผู้ดูแลระบบ",
+          status: "เปิดใช้งาน",
+        },
+        {
+          id: 2,
+          name: "พนักงานหน้าร้าน",
+          username: "staff",
+          password: "1234",
+          role: "staff",
+          position: "พนักงาน",
+          status: "เปิดใช้งาน",
+        },
+      ];
+
+      localStorage.setItem(
+        "pos_employees",
+        JSON.stringify(employees)
+      );
+    }
+
+    // ===============================
+    // ตรวจสอบ Username + Password
+    // ===============================
 
     const employee = employees.find(
       (item) =>
@@ -35,6 +72,10 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    // ===============================
+    // ตรวจสอบสถานะบัญชี
+    // ===============================
+
     if (employee.status !== "เปิดใช้งาน") {
       setError(
         "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
@@ -42,13 +83,19 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    // ===============================
     // บันทึกผู้ใช้งานปัจจุบัน
+    // ===============================
+
     localStorage.setItem(
       "pos_current_user",
       JSON.stringify(employee)
     );
 
+    // ===============================
     // บันทึก Audit Log
+    // ===============================
+
     const savedLogs =
       localStorage.getItem("pos_audit_logs");
 
@@ -71,6 +118,10 @@ export default function Login({ onLogin }) {
       JSON.stringify(logs)
     );
 
+    // ===============================
+    // เข้าสู่ระบบ
+    // ===============================
+
     onLogin(employee);
   };
 
@@ -80,7 +131,6 @@ export default function Login({ onLogin }) {
       <div className="w-full max-w-md">
 
         {/* LOGO */}
-
         <div className="text-center mb-8">
 
           <div className="text-6xl mb-4">
@@ -98,7 +148,6 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* LOGIN CARD */}
-
         <div className="bg-white rounded-2xl shadow-2xl p-8">
 
           <h2 className="text-2xl font-bold text-slate-800 mb-2">
@@ -115,7 +164,6 @@ export default function Login({ onLogin }) {
           >
 
             {/* USERNAME */}
-
             <div>
 
               <label className="block font-medium mb-2">
@@ -135,7 +183,6 @@ export default function Login({ onLogin }) {
             </div>
 
             {/* PASSWORD */}
-
             <div>
 
               <label className="block font-medium mb-2">
@@ -161,15 +208,11 @@ export default function Login({ onLogin }) {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword(
-                      !showPassword
-                    )
+                    setShowPassword(!showPassword)
                   }
                   className="absolute right-4 top-3"
                 >
-                  {showPassword
-                    ? "🙈"
-                    : "👁️"}
+                  {showPassword ? "🙈" : "👁️"}
                 </button>
 
               </div>
@@ -177,7 +220,6 @@ export default function Login({ onLogin }) {
             </div>
 
             {/* ERROR */}
-
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
                 ⚠️ {error}
@@ -185,7 +227,6 @@ export default function Login({ onLogin }) {
             )}
 
             {/* LOGIN BUTTON */}
-
             <button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition"
@@ -194,6 +235,23 @@ export default function Login({ onLogin }) {
             </button>
 
           </form>
+
+          {/* DEFAULT ACCOUNT */}
+          <div className="mt-6 bg-slate-50 rounded-xl p-4 text-sm">
+
+            <p className="font-bold text-slate-700 mb-2">
+              🔑 บัญชีเริ่มต้น
+            </p>
+
+            <p className="text-slate-600">
+              Admin: <b>admin</b> / <b>1234</b>
+            </p>
+
+            <p className="text-slate-600">
+              Staff: <b>staff</b> / <b>1234</b>
+            </p>
+
+          </div>
 
         </div>
 
