@@ -7,4 +7,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+
+  server: {
+    allowedHosts: ['convenience-pos.onrender.com'],
+  },
 })
