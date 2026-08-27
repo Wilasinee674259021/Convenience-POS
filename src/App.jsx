@@ -15,31 +15,51 @@ import Employees from "./pages/Employees";
 import AuditLog from "./pages/AuditLog";
 
 function App() {
+  // =========================
+  // CURRENT USER
+  // =========================
 
-  const [currentUser, setCurrentUser] =
-    useState(() => {
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pos_current_user");
 
-      const saved =
-        localStorage.getItem(
-          "pos_current_user"
-        );
+      if (!saved) {
+        return null;
+      }
 
-      return saved
-        ? JSON.parse(saved)
-        : null;
-    });
+      return JSON.parse(saved);
+    } catch (error) {
+      console.error("ไม่สามารถอ่านข้อมูลผู้ใช้ได้:", error);
+      localStorage.removeItem("pos_current_user");
+      return null;
+    }
+  });
 
-  const [currentPage, setCurrentPage] =
-    useState("Dashboard");
+  // =========================
+  // CURRENT PAGE
+  // =========================
+
+  const [currentPage, setCurrentPage] = useState("Dashboard");
 
   // =========================
   // LOGIN
   // =========================
 
   const handleLogin = (employee) => {
+    if (!employee) {
+      return;
+    }
 
+    // บันทึกผู้ใช้ไว้ใน localStorage
+    localStorage.setItem(
+      "pos_current_user",
+      JSON.stringify(employee)
+    );
+
+    // ตั้งค่าผู้ใช้ปัจจุบัน
     setCurrentUser(employee);
 
+    // หลัง Login ให้ไป Dashboard
     setCurrentPage("Dashboard");
   };
 
@@ -48,48 +68,57 @@ function App() {
   // =========================
 
   const handleLogout = () => {
+    const confirmLogout = window.confirm(
+      "ต้องการออกจากระบบใช่หรือไม่?"
+    );
 
-    const confirmLogout =
-      window.confirm(
-        "ต้องการออกจากระบบใช่หรือไม่?"
-      );
+    if (!confirmLogout) {
+      return;
+    }
 
-    if (!confirmLogout) return;
+    // =========================
+    // SAVE AUDIT LOG
+    // =========================
 
-    const savedLogs =
-      localStorage.getItem(
+    try {
+      const savedLogs = localStorage.getItem(
         "pos_audit_logs"
       );
 
-    const logs = savedLogs
-      ? JSON.parse(savedLogs)
-      : [];
+      const logs = savedLogs
+        ? JSON.parse(savedLogs)
+        : [];
 
-    logs.unshift({
-      id: Date.now(),
-      date: new Date().toLocaleString(
-        "th-TH"
-      ),
-      employee:
-        currentUser?.name ||
-        "ไม่ทราบชื่อ",
-      action: "ออกจากระบบ",
-      module: "ระบบ",
-      detail:
-        "ออกจากระบบสำเร็จ",
-      type: "logout",
-    });
+      logs.unshift({
+        id: Date.now(),
+        date: new Date().toLocaleString("th-TH"),
+        employee:
+          currentUser?.name || "ไม่ทราบชื่อ",
+        action: "ออกจากระบบ",
+        module: "ระบบ",
+        detail: "ออกจากระบบสำเร็จ",
+        type: "logout",
+      });
 
-    localStorage.setItem(
-      "pos_audit_logs",
-      JSON.stringify(logs)
-    );
+      localStorage.setItem(
+        "pos_audit_logs",
+        JSON.stringify(logs)
+      );
+    } catch (error) {
+      console.error(
+        "ไม่สามารถบันทึก Audit Log ได้:",
+        error
+      );
+    }
 
-    localStorage.removeItem(
-      "pos_current_user"
-    );
+    // =========================
+    // CLEAR LOGIN
+    // =========================
+
+    localStorage.removeItem("pos_current_user");
 
     setCurrentUser(null);
+    setCurrentPage("Dashboard");
   };
 
   // =========================
@@ -109,7 +138,6 @@ function App() {
   // =========================
 
   const allowedPages = {
-
     "พนักงาน": [
       "Dashboard",
       "หน้าคิดเงิน",
@@ -141,27 +169,25 @@ function App() {
     ],
   };
 
+  const userRole = currentUser?.role;
+
   const userAllowedPages =
-    allowedPages[
-      currentUser.role
-    ] || [];
+    allowedPages[userRole] || [];
 
   // =========================
   // RENDER PAGE
   // =========================
 
   const renderPage = () => {
-
+    // ถ้าผู้ใช้ไม่มีสิทธิ์เข้าหน้านั้น
+    // ให้กลับไป Dashboard
     if (
-      !userAllowedPages.includes(
-        currentPage
-      )
+      !userAllowedPages.includes(currentPage)
     ) {
       return <Dashboard />;
     }
 
     switch (currentPage) {
-
       case "Dashboard":
         return <Dashboard />;
 
@@ -197,19 +223,21 @@ function App() {
     }
   };
 
+  // =========================
+  // MAIN APP
+  // =========================
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-slate-100">
 
       <Sidebar
         currentPage={currentPage}
-        setCurrentPage={
-          setCurrentPage
-        }
+        setCurrentPage={setCurrentPage}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
 
-      <main className="flex-1">
+      <main className="flex-1 min-w-0">
         {renderPage()}
       </main>
 
