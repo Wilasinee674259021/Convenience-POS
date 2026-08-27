@@ -14,59 +14,182 @@ import Branches from "./pages/Branches";
 import Employees from "./pages/Employees";
 import AuditLog from "./pages/AuditLog";
 
-function App() {
-  // =========================
-  // CURRENT USER
-  // =========================
+// =====================================================
+// PERMISSION
+// =====================================================
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("pos_current_user");
+const allowedPages = {
+  "พนักงาน": [
+    "หน้าคิดเงิน",
+    "สมาชิก",
+  ],
 
-      if (!saved) {
-        return null;
-      }
+  "ผู้จัดการ": [
+    "Dashboard",
+    "หน้าคิดเงิน",
+    "สินค้า",
+    "สมาชิก",
+    "โปรโมชั่น",
+    "สต๊อกสินค้า",
+    "จัดซื้อ / รับสินค้า",
+    "Audit Log",
+  ],
 
-      return JSON.parse(saved);
-    } catch (error) {
-      console.error(
-        "ไม่สามารถอ่านข้อมูลผู้ใช้ได้:",
-        error
-      );
+  "ผู้ดูแลระบบ": [
+    "Dashboard",
+    "หน้าคิดเงิน",
+    "สินค้า",
+    "สมาชิก",
+    "โปรโมชั่น",
+    "สต๊อกสินค้า",
+    "จัดซื้อ / รับสินค้า",
+    "สาขา",
+    "พนักงาน",
+    "Audit Log",
+  ],
+};
 
-      localStorage.removeItem("pos_current_user");
+// =====================================================
+// GET DEFAULT PAGE
+// =====================================================
 
-      return null;
-    }
-  });
+const getDefaultPage = (user) => {
+  if (!user) {
+    return "Dashboard";
+  }
 
-  // =========================
-  // CURRENT PAGE
-  // =========================
-  // จำหน้าล่าสุดเอาไว้
-  // เมื่อ Refresh จะกลับมาหน้าเดิม
+  const pages =
+    allowedPages[user.role] || [];
 
-  const [currentPage, setCurrentPage] = useState(() => {
-    try {
-      const savedPage =
-        localStorage.getItem("pos_current_page");
+  // พนักงานให้เข้าหน้าคิดเงินเป็นหน้าแรก
+  if (user.role === "พนักงาน") {
+    return "หน้าคิดเงิน";
+  }
 
-      return savedPage || "Dashboard";
-    } catch (error) {
-      console.error(
-        "ไม่สามารถอ่านหน้าปัจจุบันได้:",
-        error
-      );
+  // ผู้จัดการ / ผู้ดูแลระบบ
+  if (pages.includes("Dashboard")) {
+    return "Dashboard";
+  }
 
+  return pages[0] || "Dashboard";
+};
+
+// =====================================================
+// GET SAVED PAGE
+// =====================================================
+
+const getInitialPage = () => {
+  try {
+    // อ่าน user ก่อน
+    const savedUser =
+      localStorage.getItem("pos_current_user");
+
+    if (!savedUser) {
       return "Dashboard";
     }
-  });
 
-  // =========================
+    const user = JSON.parse(savedUser);
+
+    const pages =
+      allowedPages[user.role] || [];
+
+    // อ่านหน้าที่เคยเปิดล่าสุด
+    const savedPage =
+      localStorage.getItem("pos_current_page");
+
+    // ถ้ามีหน้าที่จำไว้ และมีสิทธิ์เข้าหน้านั้น
+    if (
+      savedPage &&
+      pages.includes(savedPage)
+    ) {
+      return savedPage;
+    }
+
+    // ถ้าหน้าที่จำไว้ไม่มีสิทธิ์
+    // ให้ใช้หน้าเริ่มต้นของ Role
+    const defaultPage =
+      getDefaultPage(user);
+
+    localStorage.setItem(
+      "pos_current_page",
+      defaultPage
+    );
+
+    return defaultPage;
+
+  } catch (error) {
+    console.error(
+      "ไม่สามารถอ่านหน้าปัจจุบันได้:",
+      error
+    );
+
+    return "Dashboard";
+  }
+};
+
+// =====================================================
+// APP
+// =====================================================
+
+function App() {
+
+  // ===================================================
+  // CURRENT USER
+  // ===================================================
+
+  const [currentUser, setCurrentUser] =
+    useState(() => {
+      try {
+        const saved =
+          localStorage.getItem(
+            "pos_current_user"
+          );
+
+        if (!saved) {
+          return null;
+        }
+
+        return JSON.parse(saved);
+
+      } catch (error) {
+        console.error(
+          "ไม่สามารถอ่านข้อมูลผู้ใช้ได้:",
+          error
+        );
+
+        localStorage.removeItem(
+          "pos_current_user"
+        );
+
+        return null;
+      }
+    });
+
+  // ===================================================
+  // CURRENT PAGE
+  // ===================================================
+
+  const [currentPage, setCurrentPage] =
+    useState(getInitialPage);
+
+  // ===================================================
   // CHANGE PAGE
-  // =========================
+  // ===================================================
 
   const handlePageChange = (page) => {
+
+    // ตรวจสอบสิทธิ์ก่อนเปลี่ยนหน้า
+    const pages =
+      allowedPages[currentUser?.role] || [];
+
+    if (!pages.includes(page)) {
+      alert(
+        "คุณไม่มีสิทธิ์เข้าหน้านี้"
+      );
+      return;
+    }
+
+    // เปลี่ยนหน้า
     setCurrentPage(page);
 
     // จำหน้าปัจจุบัน
@@ -76,51 +199,61 @@ function App() {
     );
   };
 
-  // =========================
+  // ===================================================
   // LOGIN
-  // =========================
+  // ===================================================
 
   const handleLogin = (employee) => {
+
     if (!employee) {
       return;
     }
 
-    // บันทึกผู้ใช้ไว้ใน localStorage
+    // บันทึกผู้ใช้
     localStorage.setItem(
       "pos_current_user",
       JSON.stringify(employee)
     );
 
-    // ตั้งค่าผู้ใช้ปัจจุบัน
+    // ตั้งค่าผู้ใช้
     setCurrentUser(employee);
 
-    // หลัง Login ให้ไป Dashboard
-    setCurrentPage("Dashboard");
+    // ===============================================
+    // กำหนดหน้าแรกตาม Role
+    // ===============================================
+
+    const firstPage =
+      getDefaultPage(employee);
+
+    setCurrentPage(firstPage);
 
     localStorage.setItem(
       "pos_current_page",
-      "Dashboard"
+      firstPage
     );
   };
 
-  // =========================
+  // ===================================================
   // LOGOUT
-  // =========================
+  // ===================================================
 
   const handleLogout = () => {
-    const confirmLogout = window.confirm(
-      "ต้องการออกจากระบบใช่หรือไม่?"
-    );
+
+    const confirmLogout =
+      window.confirm(
+        "ต้องการออกจากระบบใช่หรือไม่?"
+      );
 
     if (!confirmLogout) {
       return;
     }
 
-    // =========================
+    // ===============================================
     // SAVE AUDIT LOG
-    // =========================
+    // ===============================================
 
     try {
+
       const savedLogs =
         localStorage.getItem(
           "pos_audit_logs"
@@ -132,15 +265,23 @@ function App() {
 
       logs.unshift({
         id: Date.now(),
-        date: new Date().toLocaleString(
-          "th-TH"
-        ),
+
+        date:
+          new Date().toLocaleString(
+            "th-TH"
+          ),
+
         employee:
           currentUser?.name ||
           "ไม่ทราบชื่อ",
+
         action: "ออกจากระบบ",
+
         module: "ระบบ",
-        detail: "ออกจากระบบสำเร็จ",
+
+        detail:
+          "ออกจากระบบสำเร็จ",
+
         type: "logout",
       });
 
@@ -148,22 +289,25 @@ function App() {
         "pos_audit_logs",
         JSON.stringify(logs)
       );
+
     } catch (error) {
+
       console.error(
         "ไม่สามารถบันทึก Audit Log ได้:",
         error
       );
+
     }
 
-    // =========================
+    // ===============================================
     // CLEAR LOGIN
-    // =========================
+    // ===============================================
 
     localStorage.removeItem(
       "pos_current_user"
     );
 
-    // เคลียร์หน้าที่จำไว้
+    // ล้างหน้าที่จำไว้
     localStorage.removeItem(
       "pos_current_page"
     );
@@ -173,9 +317,9 @@ function App() {
     setCurrentPage("Dashboard");
   };
 
-  // =========================
+  // ===================================================
   // LOGIN SCREEN
-  // =========================
+  // ===================================================
 
   if (!currentUser) {
     return (
@@ -185,81 +329,40 @@ function App() {
     );
   }
 
-  // =========================
-  // PERMISSION
-  // =========================
+  // ===================================================
+  // USER ROLE
+  // ===================================================
 
-  const allowedPages = {
-    "พนักงาน": [
-      "หน้าคิดเงิน",
-      "สมาชิก",
-    ],
-
-    "ผู้จัดการ": [
-      "Dashboard",
-      "หน้าคิดเงิน",
-      "สินค้า",
-      "สมาชิก",
-      "โปรโมชั่น",
-      "สต๊อกสินค้า",
-      "จัดซื้อ / รับสินค้า",
-      "Audit Log",
-    ],
-
-    "ผู้ดูแลระบบ": [
-      "Dashboard",
-      "หน้าคิดเงิน",
-      "สินค้า",
-      "สมาชิก",
-      "โปรโมชั่น",
-      "สต๊อกสินค้า",
-      "จัดซื้อ / รับสินค้า",
-      "สาขา",
-      "พนักงาน",
-      "Audit Log",
-    ],
-  };
-
-  const userRole = currentUser?.role;
+  const userRole =
+    currentUser?.role;
 
   const userAllowedPages =
     allowedPages[userRole] || [];
 
-  // =========================
-  // CHECK SAVED PAGE
-  // =========================
+  // ===================================================
+  // CHECK CURRENT PAGE PERMISSION
+  // ===================================================
 
-  // ถ้าหน้าที่จำไว้ ผู้ใช้ไม่มีสิทธิ์
-  // ให้กลับไป Dashboard
+  let safePage = currentPage;
 
+  // ถ้าหน้าที่เปิดอยู่ไม่มีสิทธิ์
   if (
-    !userAllowedPages.includes(currentPage)
+    !userAllowedPages.includes(
+      currentPage
+    )
   ) {
-    if (currentPage !== "Dashboard") {
-      setCurrentPage("Dashboard");
-
-      localStorage.setItem(
-        "pos_current_page",
-        "Dashboard"
-      );
-    }
+    safePage =
+      getDefaultPage(currentUser);
   }
 
-  // =========================
+  // ===================================================
   // RENDER PAGE
-  // =========================
+  // ===================================================
 
   const renderPage = () => {
-    // ถ้าผู้ใช้ไม่มีสิทธิ์เข้าหน้านั้น
-    // ให้กลับไป Dashboard
 
-    if (
-      !userAllowedPages.includes(currentPage)
-    ) {
-      return <Dashboard />;
-    }
+    switch (safePage) {
 
-    switch (currentPage) {
       case "Dashboard":
         return <Dashboard />;
 
@@ -295,15 +398,15 @@ function App() {
     }
   };
 
-  // =========================
+  // ===================================================
   // MAIN APP
-  // =========================
+  // ===================================================
 
   return (
     <div className="flex min-h-screen bg-slate-100">
 
       <Sidebar
-        currentPage={currentPage}
+        currentPage={safePage}
         setCurrentPage={handlePageChange}
         currentUser={currentUser}
         onLogout={handleLogout}
